@@ -1,46 +1,81 @@
-import Header from "./Header";
-import "./index.css"; // Make sure your CSS is imported here
+import { useState } from "react";
+import Header from "./Header"; // Import the Header component
+import "./index.css";
 
 function App() {
-    return (
-      <>
-        <Header />
-        <main className="container">
-          <div className="outer-square">
-            <input type="text" className="center-input" placeholder="insert MyAnimeList profile link" />
-            <button className="submit-button" onClick={getData}>get recommendations!</button>
-          </div>
-        </main>
-      </>
-    );
-}
+  const [profileLink, setProfileLink] = useState("");
+  const [recommendations, setRecommendations] = useState([]);
+  const [error, setError] = useState("");
 
-async function getData() {
-  const profileLink = document.querySelector(".center-input").value;
+  // Fetch recommendations from the backend
+  async function getData() {
+    setError(""); // Clear previous errors
+    setRecommendations([]); // Clear previous recommendations
 
-  try {
+    if (!profileLink) {
+      setError("Please enter a valid MyAnimeList profile link.");
+      return;
+    }
+
+    try {
       const response = await fetch("http://localhost:5000/recommendations", {
-          method: "POST",
-          headers: {
-              "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ profileLink }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ profileLink }),
       });
 
       const data = await response.json();
+
       if (response.ok) {
-          console.log("Recommendations:", data.recommendations);
-          alert("Success! Check the console for recommendations.");
+        setRecommendations(data.recommendations);
       } else {
-          console.error("Error:", data.error);
-          alert("Error: " + data.error);
+        setError(data.error || "Failed to fetch recommendations.");
       }
-  } catch (error) {
-      console.error("Fetch error:", error);
-      alert("An error occurred while fetching recommendations.");
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError("An unexpected error occurred. Please try again.");
+    }
   }
+
+  return (
+    <>
+      <Header />
+      <main className="container">
+        <div className="outer-square">
+          <input
+            type="text"
+            className="center-input"
+            placeholder="Insert MyAnimeList profile link"
+            value={profileLink}
+            onChange={(e) => setProfileLink(e.target.value)}
+          />
+          <button className="submit-button" onClick={getData}>
+            Get Recommendations!
+          </button>
+        </div>
+
+        {/* Display error messages */}
+        {error && <p style={{ color: "red", marginTop: "10px" , fontWeight: "bold"}}>{error}</p>}
+
+        {/* Display recommendations */}
+        {recommendations.length > 0 && (
+          <div className="recommendations">
+            <h2>Recommended Anime</h2>
+            <ul>
+              {recommendations.map((anime, index) => (
+                <li key={index}>
+                  <strong>{anime.title}</strong> (Score: {anime.score})<br />
+                  Genres: {anime.genres.join(", ")}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </main>
+    </>
+  );
 }
-
-
 
 export default App;

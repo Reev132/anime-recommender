@@ -64,14 +64,14 @@ function extractUsername(profileLink) {
 }
 
 function generateRecommendations(data) {
-    // This is a placeholder function. Implement your actual recommendation logic here.
-    const animeList = data.data || [];
+    // this is placeholder function. Implement recommendation logic here.
+    /*const animeList = data.data || [];
     const sortedList = animeList.sort((a, b) => b.list_status.score - a.list_status.score);
     return sortedList.slice(0, 5).map(anime => ({
         title: anime.node.title,
         score: anime.list_status.score,
         genres: anime.node.genres ? anime.node.genres.map(genre => genre.name) : []
-    }));
+    }));*/
 }
 
 // Test route
