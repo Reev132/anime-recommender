@@ -3,7 +3,7 @@ import Header from "./Header"; // Import the Header component
 import "./index.css";
 
 function App() {
-  const [profileLink, setProfileLink] = useState("");
+  const [username, setUsername] = useState("");
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState("");
 
@@ -12,8 +12,8 @@ function App() {
     setError(""); // Clear previous errors
     setRecommendations([]); // Clear previous recommendations
 
-    if (!profileLink) {
-      setError("Please enter a valid MyAnimeList profile link.");
+    if (!username) {
+      setError("Please enter a valid MyAnimeList username.");
       return;
     }
 
@@ -23,7 +23,7 @@ function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ profileLink }),
+        body: JSON.stringify({ username }),
       });
 
       const data = await response.json();
@@ -47,9 +47,9 @@ function App() {
           <input
             type="text"
             className="center-input"
-            placeholder="Insert MyAnimeList profile link"
-            value={profileLink}
-            onChange={(e) => setProfileLink(e.target.value)}
+            placeholder="Enter your MyAnimeList username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
           />
           <button className="submit-button" onClick={getData}>
             Get Recommendations!
@@ -57,7 +57,7 @@ function App() {
         </div>
 
         {/* Display error messages */}
-        {error && <p style={{ color: "red", marginTop: "10px" , fontWeight: "bold"}}>{error}</p>}
+        {error && <p style={{ color: "red", marginTop: "10px", fontWeight: "bold" }}>{error}</p>}
 
         {/* Display recommendations */}
         {recommendations.length > 0 && (

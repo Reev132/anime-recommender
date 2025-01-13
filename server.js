@@ -14,25 +14,16 @@ app.use(express.json());
 
 app.post("/recommendations", async (req, res) => {
     console.log("Request received:", req.body);
-    const { profileLink } = req.body;
+    const { username } = req.body;
 
-    if (!profileLink) {
-        console.log("No profile link provided");
-        return res.status(400).json({ error: "Profile link is required" });
+    // Check if the username is provided
+    if (!username) {
+        console.log("No username provided");
+        return res.status(400).json({ error: "Username is required" });
     }
 
     try {
-        console.log("Extracting username from:", profileLink);
-        const username = extractUsername(profileLink);
-        if (!username) {
-            console.log("Invalid profile link");
-            return res.status(400).json({ error: "Invalid MyAnimeList profile link" });
-        }
-
-        console.log("Username extracted:", username);
-        //console.log("CLIENT_ID:", CLIENT_ID ? "Set" : "Not set");
-
-        console.log("Fetching data from MAL API");
+        console.log("Fetching data from MAL API for username:", username);
         const response = await fetch(`https://api.myanimelist.net/v2/users/${username}/animelist?fields=list_status,genres,score`, {
             method: "GET",
             headers: {
@@ -58,20 +49,10 @@ app.post("/recommendations", async (req, res) => {
     console.log("Request processing completed");
 });
 
-function extractUsername(profileLink) {
-    const match = profileLink.match(/https?:\/\/myanimelist\.net\/profile\/(\w+)/);
-    return match ? match[1] : null;
-}
-
 function generateRecommendations(data) {
-    // this is placeholder function. Implement recommendation logic here.
-    /*const animeList = data.data || [];
-    const sortedList = animeList.sort((a, b) => b.list_status.score - a.list_status.score);
-    return sortedList.slice(0, 5).map(anime => ({
-        title: anime.node.title,
-        score: anime.list_status.score,
-        genres: anime.node.genres ? anime.node.genres.map(genre => genre.name) : []
-    }));*/
+    // Placeholder function for recommendations logic
+    // This can be implemented to provide recommendations based on the data
+    return [];
 }
 
 // Test route
