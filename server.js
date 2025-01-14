@@ -52,6 +52,7 @@ app.post("/recommendations", async (req, res) => {
 function generateRecommendations(data) {
     // Placeholder function for recommendations logic
     // This can be implemented to provide recommendations based on the data
+    console.log("Testing Recommendation Function");
     return [];
 }
 
