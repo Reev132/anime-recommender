@@ -1,5 +1,5 @@
-import { useState } from "react";
-import Header from "./Header"; // Import the Header component
+import { useState, useEffect } from "react";
+import Header from "./Header";
 import "./index.css";
 
 function App() {
@@ -8,77 +8,57 @@ function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function getData() {
-    setError(""); // Clear previous errors
-    setRecommendations([]); // Clear previous recommendations
-    setLoading(true); // Start loading
-  
-    if (!username) {
-      setError("Please enter a valid MyAnimeList username.");
-      setLoading(false); // Stop loading
-      return;
+  useEffect(() => {
+    // Check for token in URL when the app loads
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+      fetchRecommendations(token);
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  
+  }, []);
+
+  async function getData() {
+    setError("");
+    setRecommendations([]);
+    setLoading(true);
+
     try {
-      // Step 1: Get authorization URL and code verifier
       const authResponse = await fetch("http://localhost:5000/authorize");
       const authData = await authResponse.json();
-  
-      if (!authData.auth_url || !authData.code_verifier) {
-        throw new Error("Failed to get authorization URL.");
-      }
-  
-      // Open the authorization URL in a new tab
-      window.open(authData.auth_url, "_blank");
-  
-      // Prompt user to paste the authorization code
-      const authorisationCode = prompt("Paste the authorization code here:");
-  
-      // Step 2: Exchange authorization code for token
-      const tokenResponse = await fetch("http://localhost:5000/token", {
+      
+      // Redirect to MAL authorization page
+      window.location.href = authData.auth_url;
+    } catch (error) {
+      console.error("Error:", error);
+      setError("An unexpected error occurred");
+      setLoading(false);
+    }
+  }
+
+  async function fetchRecommendations(token) {
+    try {
+      const response = await fetch("http://localhost:5000/recommendations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          authorisation_code: authorisationCode,
-          code_verifier: authData.code_verifier,
-        }),
+        body: JSON.stringify({ access_token: token }),
       });
-  
-      const tokenData = await tokenResponse.json();
-  
-      if (!tokenResponse.ok || !tokenData.access_token) {
-        throw new Error(tokenData.error || "Failed to get access token.");
-      }
-  
-      // Step 3: Fetch recommendations
-      const recommendationsResponse = await fetch(
-        "http://localhost:5000/recommendations",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ access_token: tokenData.access_token }),
-        }
-      );
-  
-      const recommendationsData = await recommendationsResponse.json();
-  
-      if (recommendationsResponse.ok) {
-        setRecommendations(recommendationsData.recommendations);
+
+      const data = await response.json();
+      if (response.ok) {
+        setRecommendations(data.recommendations);
       } else {
-        setError(recommendationsData.error || "Failed to fetch recommendations.");
+        setError(data.error || "Failed to fetch recommendations");
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
-      setError("An unexpected error occurred. Please try again.");
+      setError("Failed to fetch recommendations");
     } finally {
-      setLoading(false); // Stop loading after request completes
+      setLoading(false);
     }
   }
-  
 
   return (
     <>
@@ -97,10 +77,8 @@ function App() {
           </button>
         </div>
 
-        {/* Display error messages */}
         {error && <p style={{ color: "red", marginTop: "10px", fontWeight: "bold" }}>{error}</p>}
 
-        {/* Display recommendations */}
         {recommendations.length > 0 && (
           <div className="recommendations">
             <h2>Recommended Anime</h2>

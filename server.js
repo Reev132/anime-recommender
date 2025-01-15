@@ -9,20 +9,24 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REDIRECT_URI = "http://localhost:5173/callback";
 
 app.use(cors());
 app.use(express.json());
 
-// OAuth authorization endpoint
+// Store code verifier temporarily (in production, use a proper session store)
+let tempCodeVerifier = "";
+
 app.get("/authorize", (req, res) => {
     const codeVerifier = generateCodeVerifier();
-    const authUrl = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&code_challenge=${codeVerifier}`;
-    res.json({ auth_url: authUrl, code_verifier: codeVerifier });
+    tempCodeVerifier = codeVerifier; // Store temporarily
+    
+    const authUrl = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&code_challenge=${codeVerifier}&redirect_uri=${REDIRECT_URI}`;
+    res.json({ auth_url: authUrl });
 });
 
-// Token exchange endpoint
-app.post("/token", async (req, res) => {
-    const { authorisation_code, code_verifier } = req.body;
+app.get("/callback", async (req, res) => {
+    const { code } = req.query;
     
     try {
         const response = await fetch("https://myanimelist.net/v1/oauth2/token", {
@@ -33,20 +37,22 @@ app.post("/token", async (req, res) => {
             body: new URLSearchParams({
                 client_id: CLIENT_ID,
                 client_secret: CLIENT_SECRET,
-                code: authorisation_code,
-                code_verifier: code_verifier,
-                grant_type: "authorization_code"
+                code: code,
+                code_verifier: tempCodeVerifier,
+                grant_type: "authorization_code",
+                redirect_uri: REDIRECT_URI
             })
         });
 
         const data = await response.json();
-        res.json(data);
+        
+        // Send the token back to the frontend
+        res.redirect(`http://localhost:5173?token=${data.access_token}`);
     } catch (error) {
-        res.status(500).json({ error: "Failed to exchange token" });
+        res.status(500).send("Authentication failed");
     }
 });
 
-// Recommendations endpoint
 app.post("/recommendations", async (req, res) => {
     const { access_token } = req.body;
 
@@ -58,11 +64,10 @@ app.post("/recommendations", async (req, res) => {
         });
 
         const data = await response.json();
-        // Simple recommendation logic - just return the first 5 anime from the user's list
         const recommendations = data.data?.slice(0, 5).map(item => ({
             title: item.node.title,
             score: item.list_status.score,
-            genres: [] // MAL API doesn't provide genres in this endpoint
+            genres: []
         })) || [];
 
         res.json({ recommendations });
@@ -71,7 +76,6 @@ app.post("/recommendations", async (req, res) => {
     }
 });
 
-// Helper function to generate code verifier
 function generateCodeVerifier() {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
     let result = '';
