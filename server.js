@@ -14,12 +14,11 @@ const REDIRECT_URI = "http://localhost:5173/callback";
 app.use(cors());
 app.use(express.json());
 
-// Store code verifier temporarily (in production, use a proper session store)
 let tempCodeVerifier = "";
 
 app.get("/authorize", (req, res) => {
     const codeVerifier = generateCodeVerifier();
-    tempCodeVerifier = codeVerifier; // Store temporarily
+    tempCodeVerifier = codeVerifier;
     
     const authUrl = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&code_challenge=${codeVerifier}&redirect_uri=${REDIRECT_URI}`;
     res.json({ auth_url: authUrl });
@@ -46,33 +45,65 @@ app.get("/callback", async (req, res) => {
 
         const data = await response.json();
         
-        // Send the token back to the frontend
-        res.redirect(`http://localhost:5173?token=${data.access_token}`);
+        if (data.access_token) {
+            res.redirect(`http://localhost:5173?token=${data.access_token}`);
+        } else {
+            res.status(400).send("Failed to get access token");
+        }
     } catch (error) {
+        console.error("Token exchange error:", error);
         res.status(500).send("Authentication failed");
     }
 });
 
 app.post("/recommendations", async (req, res) => {
-    const { access_token } = req.body;
+    const { access_token, username } = req.body;
+
+    if (!access_token || !username) {
+        return res.status(400).json({ error: "Missing access token or username" });
+    }
 
     try {
-        const response = await fetch("https://api.myanimelist.net/v2/users/@me/animelist?fields=list_status", {
+        // First, verify the access token by getting user info
+        const userResponse = await fetch("https://api.myanimelist.net/v2/users/@me", {
             headers: {
                 "Authorization": `Bearer ${access_token}`
             }
         });
 
-        const data = await response.json();
-        const recommendations = data.data?.slice(0, 5).map(item => ({
-            title: item.node.title,
-            score: item.list_status.score,
-            genres: []
-        })) || [];
+        if (!userResponse.ok) {
+            throw new Error("Invalid access token");
+        }
+
+        // Then fetch the user's anime list
+        const animeListResponse = await fetch(
+            `https://api.myanimelist.net/v2/users/${username}/animelist?fields=list_status,genres`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${access_token}`
+                }
+            }
+        );
+
+        if (!animeListResponse.ok) {
+            throw new Error("Failed to fetch anime list");
+        }
+
+        const animeListData = await animeListResponse.json();
+        
+        // Process the anime list to create recommendations
+        const recommendations = animeListData.data
+            .slice(0, 5)
+            .map(item => ({
+                title: item.node.title,
+                score: item.list_status.score || "No score",
+                genres: [] // MAL API doesn't provide genres in this endpoint
+            }));
 
         res.json({ recommendations });
     } catch (error) {
-        res.status(500).json({ error: "Failed to fetch recommendations" });
+        console.error("Recommendations error:", error);
+        res.status(500).json({ error: error.message || "Failed to fetch recommendations" });
     }
 });
 

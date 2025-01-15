@@ -13,6 +13,7 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     if (token) {
+      console.log("Token received:", token); // Debug log
       fetchRecommendations(token);
       // Clean up the URL
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -20,6 +21,11 @@ function App() {
   }, []);
 
   async function getData() {
+    if (!username) {
+      setError("Please enter a username");
+      return;
+    }
+
     setError("");
     setRecommendations([]);
     setLoading(true);
@@ -27,6 +33,9 @@ function App() {
     try {
       const authResponse = await fetch("http://localhost:5000/authorize");
       const authData = await authResponse.json();
+      
+      // Store username in localStorage before redirect
+      localStorage.setItem('mal_username', username);
       
       // Redirect to MAL authorization page
       window.location.href = authData.auth_url;
@@ -39,21 +48,34 @@ function App() {
 
   async function fetchRecommendations(token) {
     try {
+      // Retrieve username from localStorage
+      const savedUsername = localStorage.getItem('mal_username');
+      if (!savedUsername) {
+        setError("Username not found");
+        return;
+      }
+
       const response = await fetch("http://localhost:5000/recommendations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ access_token: token }),
+        body: JSON.stringify({ 
+          access_token: token,
+          username: savedUsername 
+        }),
       });
 
       const data = await response.json();
       if (response.ok) {
         setRecommendations(data.recommendations);
+        // Clear stored username after successful fetch
+        localStorage.removeItem('mal_username');
       } else {
         setError(data.error || "Failed to fetch recommendations");
       }
     } catch (error) {
+      console.error("Fetch error:", error);
       setError("Failed to fetch recommendations");
     } finally {
       setLoading(false);
