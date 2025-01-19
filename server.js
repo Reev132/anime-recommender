@@ -119,3 +119,35 @@ function generateCodeVerifier() {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+// Add this new test endpoint after your other routes
+app.post("/test-recommendations", async (req, res) => {
+    const { access_token } = req.body;
+
+    if (!access_token) {
+        return res.status(400).json({ error: "Missing access token" });
+    }
+
+    try {
+        // Test the access token by making a simple API call
+        const testResponse = await fetch("https://api.myanimelist.net/v2/users/@me", {
+            headers: {
+                "Authorization": `Bearer ${access_token}`
+            }
+        });
+
+        if (testResponse.ok) {
+            const userData = await testResponse.json();
+            console.log("Test successful for user:", userData.name);
+            res.json({ 
+                message: "Test successful", 
+                username: userData.name 
+            });
+        } else {
+            throw new Error("Failed to verify access token");
+        }
+    } catch (error) {
+        console.error("Test failed:", error);
+        res.status(500).json({ error: error.message || "Test failed" });
+    }
+});

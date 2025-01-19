@@ -7,18 +7,44 @@ function App() {
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [testStatus, setTestStatus] = useState(""); // Add this line
 
   useEffect(() => {
     // Check for token in URL when the app loads
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     if (token) {
-      console.log("Token received:", token); // Debug log
-      fetchRecommendations(token);
-      // Clean up the URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      console.log("Token received:", token);
+      testRecommendations(token); // Changed this line
     }
   }, []);
+
+  // Add this new test function
+  async function testRecommendations(token) {
+    try {
+      const response = await fetch("http://localhost:5000/test-recommendations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ access_token: token }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setTestStatus("Recommendations working!"); // Success message
+        console.log("Test successful:", data);
+      } else {
+        setTestStatus("Recommendations failed!"); // Failure message
+        console.error("Test failed:", data.error);
+      }
+    } catch (error) {
+      setTestStatus("Recommendations failed!"); // Failure message
+      console.error("Test error:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function getData() {
     if (!username) {
@@ -27,57 +53,18 @@ function App() {
     }
 
     setError("");
-    setRecommendations([]);
+    setTestStatus(""); // Clear previous test status
     setLoading(true);
 
     try {
       const authResponse = await fetch("http://localhost:5000/authorize");
       const authData = await authResponse.json();
       
-      // Store username in localStorage before redirect
       localStorage.setItem('mal_username', username);
-      
-      // Redirect to MAL authorization page
       window.location.href = authData.auth_url;
     } catch (error) {
       console.error("Error:", error);
       setError("An unexpected error occurred");
-      setLoading(false);
-    }
-  }
-
-  async function fetchRecommendations(token) {
-    try {
-      // Retrieve username from localStorage
-      const savedUsername = localStorage.getItem('mal_username');
-      if (!savedUsername) {
-        setError("Username not found");
-        return;
-      }
-
-      const response = await fetch("http://localhost:5000/recommendations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          access_token: token,
-          username: savedUsername 
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setRecommendations(data.recommendations);
-        // Clear stored username after successful fetch
-        localStorage.removeItem('mal_username');
-      } else {
-        setError(data.error || "Failed to fetch recommendations");
-      }
-    } catch (error) {
-      console.error("Fetch error:", error);
-      setError("Failed to fetch recommendations");
-    } finally {
       setLoading(false);
     }
   }
@@ -99,21 +86,18 @@ function App() {
           </button>
         </div>
 
-        {error && <p style={{ color: "red", marginTop: "10px", fontWeight: "bold" }}>{error}</p>}
-
-        {recommendations.length > 0 && (
-          <div className="recommendations">
-            <h2>Recommended Anime</h2>
-            <ul>
-              {recommendations.map((anime, index) => (
-                <li key={index}>
-                  <strong>{anime.title}</strong> (Score: {anime.score})<br />
-                  Genres: {anime.genres.join(", ")}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* Add this test status display */}
+        {testStatus && (
+          <p style={{ 
+            color: testStatus.includes("working") ? "green" : "red",
+            marginTop: "10px", 
+            fontWeight: "bold" 
+          }}>
+            {testStatus}
+          </p>
         )}
+
+        {error && <p style={{ color: "red", marginTop: "10px", fontWeight: "bold" }}>{error}</p>}
       </main>
     </>
   );
