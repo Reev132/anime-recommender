@@ -1,70 +1,57 @@
 import { useState, useEffect } from "react";
 import Header from "./Header";
+import TestMessage from "./TestMessage";
 import "./index.css";
 
 function App() {
   const [username, setUsername] = useState("");
-  const [recommendations, setRecommendations] = useState([]);
-  const [error, setError] = useState("");
+  const [testMessage, setTestMessage] = useState("");
+  const [messageType, setMessageType] = useState("success"); // 'success' or 'error'
   const [loading, setLoading] = useState(false);
-  const [testStatus, setTestStatus] = useState(""); // Add this line
 
   useEffect(() => {
-    // Check for token in URL when the app loads
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     if (token) {
-      console.log("Token received:", token);
-      testRecommendations(token); // Changed this line
+      console.log("Got token:", token);
+      setTestMessage("Token received!");
+      setMessageType("success");
+      testAuth(token);
     }
   }, []);
 
-  // Add this new test function
-  async function testRecommendations(token) {
+  async function testAuth(token) {
     try {
-      const response = await fetch("http://localhost:5000/test-recommendations", {
+      const response = await fetch("http://localhost:5000/test", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ access_token: token }),
+        body: JSON.stringify({ access_token: token })
       });
 
       const data = await response.json();
-      if (response.ok) {
-        setTestStatus("Recommendations working!"); // Success message
-        console.log("Test successful:", data);
-      } else {
-        setTestStatus("Recommendations failed!"); // Failure message
-        console.error("Test failed:", data.error);
-      }
+      console.log("Test response:", data);
+      setTestMessage(data.message || "Test completed");
+      setMessageType("success");
     } catch (error) {
-      setTestStatus("Recommendations failed!"); // Failure message
       console.error("Test error:", error);
-    } finally {
-      setLoading(false);
+      setTestMessage("Test failed!");
+      setMessageType("error");
     }
   }
 
   async function getData() {
-    if (!username) {
-      setError("Please enter a username");
-      return;
-    }
-
-    setError("");
-    setTestStatus(""); // Clear previous test status
     setLoading(true);
-
     try {
-      const authResponse = await fetch("http://localhost:5000/authorize");
-      const authData = await authResponse.json();
-      
-      localStorage.setItem('mal_username', username);
-      window.location.href = authData.auth_url;
+      const response = await fetch("http://localhost:5000/authorize");
+      const data = await response.json();
+      console.log("Auth URL received:", data.auth_url);
+      window.location.href = data.auth_url;
     } catch (error) {
       console.error("Error:", error);
-      setError("An unexpected error occurred");
+      setTestMessage("Error getting auth URL");
+      setMessageType("error");
       setLoading(false);
     }
   }
@@ -82,22 +69,11 @@ function App() {
             onChange={(e) => setUsername(e.target.value)}
           />
           <button className="submit-button" onClick={getData} disabled={loading}>
-            {loading ? "Loading..." : "Get Recommendations!"}
+            {loading ? "Loading..." : "Test Auth"}
           </button>
         </div>
 
-        {/* Add this test status display */}
-        {testStatus && (
-          <p style={{ 
-            color: testStatus.includes("working") ? "green" : "red",
-            marginTop: "10px", 
-            fontWeight: "bold" 
-          }}>
-            {testStatus}
-          </p>
-        )}
-
-        {error && <p style={{ color: "red", marginTop: "10px", fontWeight: "bold" }}>{error}</p>}
+        {testMessage && <TestMessage message={testMessage} type={messageType} />}
       </main>
     </>
   );

@@ -16,9 +16,15 @@ app.use(express.json());
 
 let tempCodeVerifier = "";
 
+// Simple test endpoint
+app.get("/test", (req, res) => {
+  res.json({ message: "Server is working!" });
+});
+
 app.get("/authorize", (req, res) => {
     const codeVerifier = generateCodeVerifier();
     tempCodeVerifier = codeVerifier;
+    console.log("Generated code verifier:", codeVerifier);
     
     const authUrl = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&code_challenge=${codeVerifier}&redirect_uri=${REDIRECT_URI}`;
     res.json({ auth_url: authUrl });
@@ -26,6 +32,7 @@ app.get("/authorize", (req, res) => {
 
 app.get("/callback", async (req, res) => {
     const { code } = req.query;
+    console.log("Received code:", code);
     
     try {
         const response = await fetch("https://myanimelist.net/v1/oauth2/token", {
@@ -44,6 +51,7 @@ app.get("/callback", async (req, res) => {
         });
 
         const data = await response.json();
+        console.log("Token response:", data);
         
         if (data.access_token) {
             res.redirect(`http://localhost:5173?token=${data.access_token}`);
@@ -56,54 +64,27 @@ app.get("/callback", async (req, res) => {
     }
 });
 
-app.post("/recommendations", async (req, res) => {
-    const { access_token, username } = req.body;
-
-    if (!access_token || !username) {
-        return res.status(400).json({ error: "Missing access token or username" });
-    }
+app.post("/test", async (req, res) => {
+    const { access_token } = req.body;
+    console.log("Testing token:", access_token);
 
     try {
-        // First, verify the access token by getting user info
-        const userResponse = await fetch("https://api.myanimelist.net/v2/users/@me", {
+        const response = await fetch("https://api.myanimelist.net/v2/users/@me", {
             headers: {
                 "Authorization": `Bearer ${access_token}`
             }
         });
 
-        if (!userResponse.ok) {
-            throw new Error("Invalid access token");
+        if (response.ok) {
+            const data = await response.json();
+            console.log("MAL API response:", data);
+            res.json({ message: "Auth working!", username: data.name });
+        } else {
+            throw new Error("MAL API request failed");
         }
-
-        // Then fetch the user's anime list
-        const animeListResponse = await fetch(
-            `https://api.myanimelist.net/v2/users/${username}/animelist?fields=list_status,genres`,
-            {
-                headers: {
-                    "Authorization": `Bearer ${access_token}`
-                }
-            }
-        );
-
-        if (!animeListResponse.ok) {
-            throw new Error("Failed to fetch anime list");
-        }
-
-        const animeListData = await animeListResponse.json();
-        
-        // Process the anime list to create recommendations
-        const recommendations = animeListData.data
-            .slice(0, 5)
-            .map(item => ({
-                title: item.node.title,
-                score: item.list_status.score || "No score",
-                genres: [] // MAL API doesn't provide genres in this endpoint
-            }));
-
-        res.json({ recommendations });
     } catch (error) {
-        console.error("Recommendations error:", error);
-        res.status(500).json({ error: error.message || "Failed to fetch recommendations" });
+        console.error("Test endpoint error:", error);
+        res.status(500).json({ message: "Auth failed!", error: error.message });
     }
 });
 
@@ -118,36 +99,6 @@ function generateCodeVerifier() {
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-});
-
-// Add this new test endpoint after your other routes
-app.post("/test-recommendations", async (req, res) => {
-    const { access_token } = req.body;
-
-    if (!access_token) {
-        return res.status(400).json({ error: "Missing access token" });
-    }
-
-    try {
-        // Test the access token by making a simple API call
-        const testResponse = await fetch("https://api.myanimelist.net/v2/users/@me", {
-            headers: {
-                "Authorization": `Bearer ${access_token}`
-            }
-        });
-
-        if (testResponse.ok) {
-            const userData = await testResponse.json();
-            console.log("Test successful for user:", userData.name);
-            res.json({ 
-                message: "Test successful", 
-                username: userData.name 
-            });
-        } else {
-            throw new Error("Failed to verify access token");
-        }
-    } catch (error) {
-        console.error("Test failed:", error);
-        res.status(500).json({ error: error.message || "Test failed" });
-    }
+    console.log(`Client ID: ${CLIENT_ID ? 'is set' : 'is NOT set'}`);
+    console.log(`Client Secret: ${CLIENT_SECRET ? 'is set' : 'is NOT set'}`);
 });
