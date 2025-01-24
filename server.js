@@ -16,10 +16,17 @@ app.use(express.json());
 
 let tempCodeVerifier = "";
 
-// Simple test endpoint
-app.get("/test", (req, res) => {
-  res.json({ message: "Server is working!" });
-});
+// Generate code verifier for PKCE
+function generateCodeVerifier() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    let result = '';
+    for (let i = 0; i < 128; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+}
+
+// OAuth2 authorization endpoint
 app.get("/authorize", (req, res) => {
     const codeVerifier = generateCodeVerifier();
     tempCodeVerifier = codeVerifier;
@@ -29,6 +36,7 @@ app.get("/authorize", (req, res) => {
     res.json({ auth_url: authUrl });
 });
 
+// Callback endpoint to exchange code for an access token
 app.get("/callback", async (req, res) => {
     const { code } = req.query;
     console.log("Received code:", code);
@@ -63,12 +71,12 @@ app.get("/callback", async (req, res) => {
     }
 });
 
-app.post("/test", async (req, res) => {
+// Recommendations endpoint
+app.post("/recommendations", async (req, res) => {
     const { access_token } = req.body;
-    console.log("Testing token:", access_token);
 
     try {
-        const response = await fetch("https://api.myanimelist.net/v2/users/@me", {
+        const response = await fetch("https://api.myanimelist.net/v2/anime/recommendations", {
             headers: {
                 "Authorization": `Bearer ${access_token}`
             }
@@ -76,28 +84,16 @@ app.post("/test", async (req, res) => {
 
         if (response.ok) {
             const data = await response.json();
-            console.log("MAL API response:", data);
-            res.json({ message: "Auth working!", username: data.name });
+            res.json({ recommendations: data });
         } else {
-            throw new Error("MAL API request failed");
+            res.status(500).json({ message: "Failed to fetch recommendations" });
         }
     } catch (error) {
-        console.error("Test endpoint error:", error);
-        res.status(500).json({ message: "Auth failed!", error: error.message });
+        console.error("Recommendations endpoint error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 });
 
-function generateCodeVerifier() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-    let result = '';
-    for (let i = 0; i < 128; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return result;
-}
-
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Client ID: ${CLIENT_ID ? 'is set' : 'is NOT set'}`);
-    console.log(`Client Secret: ${CLIENT_SECRET ? 'is set' : 'is NOT set'}`);
 });

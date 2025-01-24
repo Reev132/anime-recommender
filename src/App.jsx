@@ -6,38 +6,42 @@ import "./index.css";
 function App() {
   const [username, setUsername] = useState("");
   const [testMessage, setTestMessage] = useState("");
-  const [messageType, setMessageType] = useState("success"); // 'success' or 'error'
+  const [messageType, setMessageType] = useState("success");
   const [loading, setLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState([]); // For storing recommendations
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
+    const token = urlParams.get("token");
     if (token) {
       console.log("Got token:", token);
       setTestMessage("Token received!");
       setMessageType("success");
-      testAuth(token);
+      fetchRecommendations(token);
     }
   }, []);
 
-  async function testAuth(token) {
+  async function fetchRecommendations(token) {
+    setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/test", {
+      const response = await fetch("http://localhost:5000/recommendations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ access_token: token })
+        body: JSON.stringify({ access_token: token }),
       });
 
       const data = await response.json();
-      console.log("Test response:", data);
-      setTestMessage(data.message || "Test completed");
+      console.log("Recommendations response:", data);
+      setRecommendations(data.recommendations || []);
       setMessageType("success");
     } catch (error) {
-      console.error("Test error:", error);
-      setTestMessage("Test failed!");
+      console.error("Error fetching recommendations:", error);
+      setTestMessage("Failed to load recommendations.");
       setMessageType("error");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -69,11 +73,23 @@ function App() {
             onChange={(e) => setUsername(e.target.value)}
           />
           <button className="submit-button" onClick={getData} disabled={loading}>
-            {loading ? "Loading..." : "Test Auth"}
+            {loading ? "Loading..." : "Get Recommendations"}
           </button>
         </div>
 
         {testMessage && <TestMessage message={testMessage} type={messageType} />}
+
+        {/* Display Recommendations */}
+        {recommendations.length > 0 && (
+          <div className="recommendations">
+            <h2>Anime Recommendations:</h2>
+            <ul>
+              {recommendations.map((rec, index) => (
+                <li key={index}>{rec.title}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </main>
     </>
   );
