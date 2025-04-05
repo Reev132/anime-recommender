@@ -8,11 +8,15 @@ function App() {
         <main className="container">
           <div className="outer-square">
             <input type="text" className="center-input" placeholder="insert MyAnimeList profile link" />
-            <button className="submit-button">get recommendations!</button>
+            <button className="submit-button" onClick={getData}>get recommendations!</button>
           </div>
         </main>
       </>
     );
+}
+
+function getData() {
+  
 }
 
 export default App;
